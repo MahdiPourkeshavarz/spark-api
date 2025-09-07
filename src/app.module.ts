@@ -9,6 +9,7 @@ import { TelegramModule } from './telegram/telegram.module';
 import { MongooseConfigModule } from './mongoose/mongooseConfigModule';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ScheduleModule } from '@nestjs/schedule';
       isGlobal: true,
     }),
     MongooseConfigModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
