@@ -1,26 +1,36 @@
-import { Injectable } from '@nestjs/common';
+/* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Post, PostDocument } from './entities/post.entity';
 import { CreatePostDto } from './dto/create-post.dto';
-import { UpdatePostDto } from './dto/update-post.dto';
 
 @Injectable()
 export class PostsService {
-  create(createPostDto: CreatePostDto) {
-    return 'This action adds a new post';
+  private readonly logger = new Logger(PostsService.name);
+
+  constructor(@InjectModel(Post.name) private postModel: Model<PostDocument>) {}
+
+  async createFromTelegram(postDto: CreatePostDto): Promise<void> {
+    try {
+      await this.postModel.findOneAndUpdate(
+        { text: postDto.text },
+        { $setOnInsert: postDto },
+        { upsert: true, new: true },
+      );
+      this.logger.log(`Successfully upserted post from: ${postDto.author}`);
+    } catch (error) {
+      this.logger.error(`Failed to create post: ${error.message}`);
+    }
   }
 
-  findAll() {
-    return `This action returns all posts`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} post`;
-  }
-
-  update(id: number, updatePostDto: UpdatePostDto) {
-    return `This action updates a #${id} post`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} post`;
+  async findRandom(): Promise<Post | null> {
+    const count = await this.postModel.countDocuments().exec();
+    if (count === 0) {
+      return null;
+    }
+    const random = Math.floor(Math.random() * count);
+    return this.postModel.findOne().skip(random).exec();
   }
 }
