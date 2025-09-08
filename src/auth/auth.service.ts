@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 
 import {
@@ -11,7 +12,6 @@ import { UsersService } from 'src/users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { LoginUserDto } from './dto/login-user.dto';
 import * as bcrypt from 'bcrypt';
-import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -41,7 +41,7 @@ export class AuthService {
     const user = await this.usersService.findByUsername(username);
 
     if (user && (await bcrypt.compare(password, user.password_hash))) {
-      const payload = { sub: (user as User)._id, username: user.username };
+      const payload = { sub: user._id, username: user.username };
       const access_token = await this.jwtService.signAsync(payload);
       return { access_token };
     }

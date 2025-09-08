@@ -21,7 +21,7 @@ export class UsersService {
 
   create(
     createUserDto: CreateUserDto & { password_hash: string },
-  ): Promise<User> {
+  ): Promise<UserDocument> {
     const newUser = new this.userModel(createUserDto);
     return newUser.save();
   }
@@ -30,7 +30,7 @@ export class UsersService {
     id: string,
     updateUserDto: UpdateUserDto,
     file?: Express.Multer.File,
-  ): Promise<User> {
+  ): Promise<UserDocument> {
     const updateData: Partial<User> = { ...updateUserDto };
 
     if (file) {
@@ -62,7 +62,7 @@ export class UsersService {
     return user;
   }
 
-  findByUsername(username: string): Promise<User | null> {
+  findByUsername(username: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ username: username.toLowerCase() }).exec();
   }
 }
