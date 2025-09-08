@@ -21,5 +21,6 @@ import { TELEGRAM_BOT_PROVIDER } from './constants/bot-provider';
       },
     },
   ],
+  exports: [TelegramService],
 })
 export class TelegramModule {}

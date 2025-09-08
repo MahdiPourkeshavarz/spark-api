@@ -10,6 +10,7 @@ import { MongooseConfigModule } from './mongoose/mongooseConfigModule';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { UploadsModule } from './uploads/uploads.module';
+import { ScraperModule } from './scraper/scraper.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { UploadsModule } from './uploads/uploads.module';
     }),
     MongooseConfigModule,
     UploadsModule,
+    ScraperModule,
   ],
   controllers: [AppController],
   providers: [AppService],

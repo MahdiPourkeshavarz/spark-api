@@ -1,16 +1,15 @@
-/* eslint-disable prettier/prettier */
 import { Test, TestingModule } from '@nestjs/testing';
-import { PostsService } from './posts.service';
+import { ScraperService } from './scraper.service';
 
-describe('PostsService', () => {
-  let service: PostsService;
+describe('ScraperService', () => {
+  let service: ScraperService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PostsService],
+      providers: [ScraperService],
     }).compile();
 
-    service = module.get<PostsService>(PostsService);
+    service = module.get<ScraperService>(ScraperService);
   });
 
   it('should be defined', () => {

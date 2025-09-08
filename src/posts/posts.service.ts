@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -25,12 +26,7 @@ export class PostsService {
     }
   }
 
-  async findRandom(): Promise<Post | null> {
-    const count = await this.postModel.countDocuments().exec();
-    if (count === 0) {
-      return null;
-    }
-    const random = Math.floor(Math.random() * count);
-    return this.postModel.findOne().skip(random).exec();
+  async findRandomBatch(): Promise<Post[]> {
+    return this.postModel.aggregate([{ $sample: { size: 100 } }]).exec();
   }
 }
