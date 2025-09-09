@@ -15,6 +15,7 @@ import { ConfigService } from '@nestjs/config';
 interface ScrapedPost {
   text: string;
   author: string;
+  source?: string;
 }
 
 @Injectable()
@@ -77,8 +78,7 @@ export class ScraperService {
       await page.goto(url, { waitUntil: 'networkidle2' });
       const textSelector =
         'article[data-testid="tweet"] div[data-testid="tweetText"]';
-      const authorSelector =
-        'div[data-testid="User-Name"] span:not(:contains("@"))';
+      const authorSelector = 'div[data-testid="User-Name"] span';
       await page.waitForSelector(textSelector, { timeout: 15000 });
       const text = await page.$eval(
         textSelector,
@@ -88,7 +88,7 @@ export class ScraperService {
         authorSelector,
         (el) => (el as HTMLElement).innerText,
       );
-      return { text, author: `@${author}` };
+      return { text, author: `@${author}`, source: 'twitter' };
     } finally {
       await page.close();
     }
@@ -112,7 +112,7 @@ export class ScraperService {
 
   private _parseTelegramDescription(
     text: string,
-  ): { text: string; author: string } | null {
+  ): { text: string; author: string; source: string } | null {
     let lines = text
       .trim()
       .split('\n')
@@ -134,12 +134,14 @@ export class ScraperService {
     if (separator) {
       author = authorLine.split(separator).filter(Boolean)[0].trim();
     }
-    if (!author) return null;
+    if (!author) {
+      author = 'telegram';
+    }
     const postText = lines
       .slice(0, lines.length - 1)
       .join('\n')
       .trim();
-    return { text: postText, author };
+    return { text: postText, author, source: 'telegram' };
   }
 
   async onModuleDestroy() {

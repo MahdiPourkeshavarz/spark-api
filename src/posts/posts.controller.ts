@@ -1,14 +1,15 @@
 /* eslint-disable prettier/prettier */
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { PostsService } from './posts.service';
-import { Post } from './entities/post.entity';
+import { Post as PostDocument } from './entities/post.entity';
+import { ImportPostDto } from './dto/import-post.dto';
 
 @Controller('posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Get('batch')
-  async getPostBatch(): Promise<Post[]> {
+  async getPostBatch(): Promise<PostDocument[]> {
     const posts = await this.postsService.findRandomBatch();
 
     if (!posts || posts.length === 0) {
@@ -18,9 +19,14 @@ export class PostsController {
           author: '@SparkApp',
           lang: 'en',
         },
-      ] as Post[];
+      ] as PostDocument[];
     }
 
     return posts;
+  }
+
+  @Post('import')
+  async importPost(@Body() importPostDto: ImportPostDto) {
+    return this.postsService.importAndProcessPost(importPostDto.url);
   }
 }

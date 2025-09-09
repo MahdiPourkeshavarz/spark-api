@@ -156,7 +156,12 @@ export class TelegramService implements OnModuleInit {
       `VALID FORWARDED POST | Lang: ${lang} | Author: ${author} | Text: ${text.substring(0, 40)}...`,
     );
 
-    this.postsService.createFromTelegram({ text, author, lang });
+    this.postsService.createFromTelegram({
+      text,
+      author,
+      lang,
+      source: 'telegram',
+    });
   }
 
   private isFarsi(text: string): boolean {
