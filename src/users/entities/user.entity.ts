@@ -18,6 +18,9 @@ export class User {
 
   @Prop({ required: false })
   image?: string;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

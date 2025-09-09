@@ -8,24 +8,27 @@ import {
   Patch,
   Request,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Patch('profile')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('imageFile'))
   updateProfile(
     @Request() req,
     @Body() updateUserDto: UpdateUserDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    const userId = req.user.sub;
+    const userId = req.user.userId;
     return this.usersService.update(userId, updateUserDto, file);
   }
 }

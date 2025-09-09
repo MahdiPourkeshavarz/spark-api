@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -30,7 +31,7 @@ export class UsersService {
     id: string,
     updateUserDto: UpdateUserDto,
     file?: Express.Multer.File,
-  ): Promise<UserDocument> {
+  ): Promise<Partial<UserDocument>> {
     const updateData: Partial<User> = { ...updateUserDto };
 
     if (file) {
@@ -50,8 +51,12 @@ export class UsersService {
       throw new NotFoundException(`User with ID "${id}" not found`);
     }
 
-    console.log('Updated user:', updatedUser);
-    return updatedUser;
+    const userObject = updatedUser.toObject();
+
+    const { password_hash, __v, createdAt, updatedAt, ...cleanUser } =
+      userObject;
+
+    return cleanUser;
   }
 
   async findById(id: string): Promise<UserDocument> {
