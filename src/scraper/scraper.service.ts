@@ -31,8 +31,17 @@ export class ScraperService {
   async onModuleInit() {
     this.logger.log('Initializing Puppeteer-core...');
     try {
+      const executablePath = this.configService.get<string>(
+        'CHROME_EXECUTABLE_PATH',
+      );
+      if (!executablePath) {
+        throw new Error(
+          'CHROME_EXECUTABLE_PATH is not set in environment variables.',
+        );
+      }
+
       this.browser = await puppeteer.launch({
-        executablePath: executablePath('chrome'),
+        executablePath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
