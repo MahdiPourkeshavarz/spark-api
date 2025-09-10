@@ -9,7 +9,7 @@ import {
   BadGatewayException,
   BadRequestException,
 } from '@nestjs/common';
-import puppeteer, { Browser } from 'puppeteer-core';
+import puppeteer, { Browser, executablePath } from 'puppeteer-core';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { ConfigService } from '@nestjs/config';
@@ -37,7 +37,7 @@ export class ScraperService {
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--single-process'
+          '--single-process',
         ],
         headless: true,
       });
