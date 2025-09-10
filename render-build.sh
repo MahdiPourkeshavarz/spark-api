@@ -2,17 +2,28 @@
 # Exit on error
 set -o errexit
 
-# 1. Install all dependencies from package.json
-echo "Installing dependencies..."
+echo "--- Starting build script ---"
+
+# 1. Install npm dependencies first
+echo "Installing npm dependencies..."
 npm install
 
-# 2. THIS IS THE CRUCIAL STEP FOR PUPPETEER
-# It uses the @puppeteer/browsers package to download a compatible version of Chrome
-echo "Downloading Chrome for Puppeteer..."
-npx puppeteer browsers install chrome
+# 2. Add the official Google Chrome repository
+echo "Adding Google Chrome repository..."
+wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
 
-# 3. Build your NestJS application (compiles TypeScript to JavaScript)
+# 3. Update package lists and install Google Chrome
+# This installs Chrome system-wide, making its path predictable.
+echo "Updating packages and installing Google Chrome..."
+apt-get update
+apt-get install -y google-chrome-stable
+
+# 4. Clean up the cache to keep the server image small
+apt-get clean
+
+# 5. Build the NestJS application
 echo "Building the NestJS app..."
 npm run build
 
-echo "Build finished successfully!"
+echo "--- Build script finished successfully ---"
