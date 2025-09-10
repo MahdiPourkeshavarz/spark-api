@@ -12,12 +12,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UploadsService } from 'src/uploads/uploads.service';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private readonly uploadsService: UploadsService,
+    private readonly jwtService: JwtService,
   ) {}
 
   create(
@@ -31,7 +33,7 @@ export class UsersService {
     id: string,
     updateUserDto: UpdateUserDto,
     file?: Express.Multer.File,
-  ): Promise<Partial<UserDocument>> {
+  ): Promise<{ user: Partial<UserDocument>; access_token: string }> {
     const updateData: Partial<User> = { ...updateUserDto };
 
     if (file) {
@@ -51,12 +53,17 @@ export class UsersService {
       throw new NotFoundException(`User with ID "${id}" not found`);
     }
 
-    const userObject = updatedUser.toObject();
+    const payload = {
+      sub: updatedUser._id,
+      username: updatedUser.username,
+      image: updatedUser.image,
+    };
+
+    const newAccessToken = await this.jwtService.signAsync(payload);
 
     const { password_hash, __v, createdAt, updatedAt, ...cleanUser } =
-      userObject;
-
-    return cleanUser;
+      updatedUser.toObject();
+    return { user: cleanUser, access_token: newAccessToken };
   }
 
   async findById(id: string): Promise<UserDocument> {
