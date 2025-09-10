@@ -18,6 +18,9 @@ export class Post {
 
   @Prop({ required: false })
   source?: string;
+
+  @Prop({ required: false })
+  imageUrl?: string;
 }
 
 export const PostSchema = SchemaFactory.createForClass(Post);

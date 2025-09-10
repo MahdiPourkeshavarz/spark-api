@@ -5,4 +5,5 @@ export class CreatePostDto {
   author: string;
   lang: string;
   source?: string;
+  imageUrl?: string;
 }

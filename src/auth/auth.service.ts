@@ -20,7 +20,9 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async signUp(createUserDto: CreateAuthDto): Promise<{ message: string }> {
+  async signUp(
+    createUserDto: CreateAuthDto,
+  ): Promise<{ access_token: string }> {
     const { username, email, password } = createUserDto;
 
     const existingUser = await this.usersService.findByUsername(username);
@@ -31,9 +33,15 @@ export class AuthService {
     const salt = await bcrypt.genSalt();
     const password_hash = await bcrypt.hash(password, salt);
 
-    await this.usersService.create({ username, email, password_hash });
+    const newUser = await this.usersService.create({
+      username,
+      email,
+      password_hash,
+    });
 
-    return { message: 'User successfully registered. Please log in.' };
+    const payload = { sub: newUser._id, username: newUser.username };
+    const access_token = await this.jwtService.signAsync(payload);
+    return { access_token };
   }
 
   async login(loginUserDto: LoginUserDto): Promise<{ access_token: string }> {

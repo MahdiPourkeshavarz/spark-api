@@ -1,5 +1,7 @@
 /* eslint-disable prettier/prettier */
 /* eslint-disable prefer-const */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Injectable,
@@ -16,6 +18,7 @@ interface ScrapedPost {
   text: string;
   author: string;
   source?: string;
+  imageUrl?: string;
 }
 
 @Injectable()
@@ -79,6 +82,8 @@ export class ScraperService {
       const textSelector =
         'article[data-testid="tweet"] div[data-testid="tweetText"]';
       const authorSelector = 'div[data-testid="User-Name"] span';
+      const imageSelector =
+        'article[data-testid="tweet"] div[data-testid="tweetPhoto"] img';
       await page.waitForSelector(textSelector, { timeout: 15000 });
       const text = await page.$eval(
         textSelector,
@@ -88,7 +93,16 @@ export class ScraperService {
         authorSelector,
         (el) => (el as HTMLElement).innerText,
       );
-      return { text, author: `@${author}`, source: 'twitter' };
+      let imageUrl: string | undefined = undefined;
+      try {
+        imageUrl = await page.$eval(
+          imageSelector,
+          (el) => (el as HTMLImageElement).src,
+        );
+      } catch (error) {
+        this.logger.log('No image found for this tweet, which is normal.');
+      }
+      return { text, author: `@${author}`, source: 'twitter', imageUrl };
     } finally {
       await page.close();
     }
@@ -102,12 +116,13 @@ export class ScraperService {
       throw new BadGatewayException(
         'Could not find post content in Telegram preview.',
       );
+    const imageUrl = $('meta[property="og:image"]').attr('content');
     const parsedPost = this._parseTelegramDescription(description);
     if (!parsedPost)
       throw new BadGatewayException(
         'Could not parse author from Telegram preview content.',
       );
-    return parsedPost;
+    return { ...parsedPost, imageUrl };
   }
 
   private _parseTelegramDescription(

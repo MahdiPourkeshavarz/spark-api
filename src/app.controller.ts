@@ -17,9 +17,4 @@ export class AppController {
   getHello(): string {
     return this.appService.getHello();
   }
-
-  @Get('test-telegram')
-  async testTelegram() {
-    return this.telegramService.testParseAndSave();
-  }
 }

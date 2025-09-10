@@ -57,6 +57,7 @@ export class PostsService {
       author: scrapedData.author,
       lang: lang,
       source: scrapedData.source,
+      imageUrl: scrapedData.imageUrl,
     };
 
     this.logger.log(`Saving processed post from author: ${postToSave.author}`);

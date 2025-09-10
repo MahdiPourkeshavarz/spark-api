@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -47,54 +48,30 @@ export class TelegramService implements OnModuleInit {
     this.logger.log('Telegram bot started and listening.');
   }
 
-  async testParseAndSave() {
-    this.logger.log('--- MANUALLY TRIGGERING PARSER ---');
-
-    const sampleMessage = `اینکه از یه جایی به بعد دیگه هیچی خوشحالت نمیکنه و فقط "بدحالی" هات کم و زیاد میشه، خودِ پیریه.
-
-*ارنستو*
-@jaragheApi`;
-
-    try {
-      this.parseAndSavePost(sampleMessage);
-      return {
-        status: 'success',
-        message: 'Test message processed. Check logs and database.',
-      };
-    } catch (error) {
-      this.logger.error('Manual test failed!', error.stack);
-      return {
-        status: 'error',
-        message: 'Test failed. Check logs for details.',
-      };
-    }
-  }
-
   private async handleTextMessage(ctx: Context) {
-    const message = (ctx.channelPost || ctx.message) as Message.TextMessage;
-    const chat = (ctx.channelPost || ctx.message)?.chat;
-    if (!message || !chat) return;
-
-    if (chat.id !== this.channelId) return;
+    const message = (ctx.channelPost || ctx.message) as Message.TextMessage &
+      Message.PhotoMessage;
+    const chat = message?.chat;
+    if (!message || !chat || chat.id !== this.channelId) return;
 
     if ('forward_from' in message || 'forward_from_chat' in message) {
       this.logger.log('Processing forwarded message...');
-      this.handleForwardedMessage(message);
+      await this.handleForwardedMessage(message);
       return;
     }
 
-    this.parseAndSavePost(message.text);
+    await this.parseAndSavePost(message);
   }
 
-  private handleForwardedMessage(message: Message.TextMessage) {
-    const messageText = message.text || '';
+  private async handleForwardedMessage(
+    message: Message.TextMessage & Message.PhotoMessage,
+  ) {
+    const messageText = message.text || message.caption || '';
     if (!messageText) {
       this.logger.warn('Forwarded message has no text content. Skipping.');
       return;
     }
 
-    // A forwarded message often contains the original channel ID at the end.
-    // We need to parse the text to find the real author.
     let lines = messageText
       .trim()
       .split('\n')
@@ -107,14 +84,11 @@ export class TelegramService implements OnModuleInit {
       return;
     }
 
-    // The last line of a forwarded post is usually the original channel's ID (e.g., @OfficialPersiaTwiter).
-    // We check for this pattern and remove the line if it exists.
     const potentialChannelId = lines[lines.length - 1].trim();
     if (potentialChannelId.startsWith('@')) {
       lines.pop();
     }
 
-    // After removing the channel ID, we check again if there's enough content to parse an author.
     if (lines.length < 2) {
       this.logger.warn(
         'Forwarded message content is invalid after removing channel ID. Skipping.',
@@ -122,7 +96,22 @@ export class TelegramService implements OnModuleInit {
       return;
     }
 
-    // Now, we expect the author to be the new last line, using our resilient pattern check.
+    let imageUrl: string | undefined = undefined;
+    if (message.photo) {
+      try {
+        const largestPhoto = message.photo[message.photo.length - 1];
+        const fileLink = await this.bot.telegram.getFileLink(
+          largestPhoto.file_id,
+        );
+        imageUrl = fileLink.href;
+      } catch (error) {
+        this.logger.error(
+          'Failed to get photo link for forwarded message',
+          error,
+        );
+      }
+    }
+
     const authorLine = lines[lines.length - 1].trim();
     let author: string | null = null;
 
@@ -140,7 +129,6 @@ export class TelegramService implements OnModuleInit {
       return;
     }
 
-    // The rest of the message is the post's text.
     const text = lines
       .slice(0, lines.length - 1)
       .join('\n')
@@ -161,6 +149,7 @@ export class TelegramService implements OnModuleInit {
       author,
       lang,
       source: 'telegram',
+      imageUrl,
     });
   }
 
@@ -169,8 +158,25 @@ export class TelegramService implements OnModuleInit {
     return farsiRegex.test(text);
   }
 
-  private parseAndSavePost(messageText: string) {
+  private async parseAndSavePost(
+    message: Message.TextMessage & Message.PhotoMessage,
+  ) {
+    const messageText = message.text || message.caption || '';
     if (!messageText) return;
+
+    let imageUrl: string | undefined = undefined;
+    if (message.photo) {
+      try {
+        const largestPhoto = message.photo[message.photo.length - 1];
+        const fileLink = await this.bot.telegram.getFileLink(
+          largestPhoto.file_id,
+        );
+        imageUrl = fileLink.href;
+      } catch (error) {
+        this.logger.error('Failed to get photo link for direct message', error);
+      }
+    }
+
     let lines = messageText
       .trim()
       .split('\n')
@@ -185,33 +191,22 @@ export class TelegramService implements OnModuleInit {
 
     const authorLine = lines[lines.length - 1].trim();
     let author: string | null = null;
-
     if (
       authorLine.length >= 3 &&
       authorLine.charAt(0) === authorLine.charAt(authorLine.length - 1)
     ) {
       author = authorLine.slice(1, -1).trim();
     }
-
-    if (!author) {
-      this.logger.log(`Message skipped: Author line format not recognized.`);
-      return;
-    }
+    if (!author) return;
 
     const text = lines
       .slice(0, lines.length - 1)
       .join('\n')
       .trim();
     const lang = this.isFarsi(text) ? 'fa' : 'en';
+    if (!text || text.length > 310) return;
 
-    if (!text || text.length > 310) {
-      this.logger.warn(`Parsed post is invalid or too long. Skipping.`);
-      return;
-    }
-
-    this.logger.log(
-      `VALID POST | Lang: ${lang} | Author: ${author} | Text: ${text.substring(0, 40)}...`,
-    );
-    this.postsService.createFromTelegram({ text, author, lang });
+    this.logger.log(`VALID POST | Image: ${!!imageUrl} | Author: ${author}`);
+    this.postsService.createFromTelegram({ text, author, lang, imageUrl });
   }
 }
