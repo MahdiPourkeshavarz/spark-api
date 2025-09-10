@@ -1,1 +1,9 @@
-export class CreatePostDto {}
+/* eslint-disable prettier/prettier */
+
+export class CreatePostDto {
+  text: string;
+  author: string;
+  lang: string;
+  source?: string;
+  imageUrl?: string;
+}
