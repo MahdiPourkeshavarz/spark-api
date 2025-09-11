@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -15,6 +16,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import chromium from '@sparticuz/chromium';
 
 interface ScrapedPost {
   text: string;
@@ -33,25 +35,9 @@ export class ScraperService implements OnModuleInit {
   async onModuleInit() {
     this.logger.log('Initializing Puppeteer-core...');
     try {
-      const executablePath = this.configService.get<string>(
-        'CHROME_EXECUTABLE_PATH',
-      );
-      if (!executablePath) {
-        throw new Error(
-          'CHROME_EXECUTABLE_PATH is not set in environment variables.',
-        );
-      }
-
-      this.logger.log(`Attempting to launch Chrome at: ${executablePath}`);
-
       this.browser = await puppeteer.launch({
-        executablePath,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--single-process',
-        ],
+        args: chromium.args,
+        executablePath: await chromium.executablePath(),
         headless: true,
       });
 

@@ -30,6 +30,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/schedule": "^6.0.0",
     "@puppeteer/browsers": "^2.10.8",
+    "@sparticuz/chromium": "^138.0.2",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "cheerio": "^1.1.2",
