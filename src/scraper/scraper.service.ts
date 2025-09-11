@@ -39,9 +39,7 @@ export class ScraperService implements OnModuleInit {
     try {
       const executablePath = computeExecutablePath({
         browser: 'chrome' as BrowserName,
-        cacheDir:
-          this.configService.get<string>('PUPPETEER_CACHE_DIR') ??
-          '/opt/render/.cache/puppeteer',
+        cacheDir: '/opt/render/.cache/puppeteer',
         buildId: 'latest',
       });
 
