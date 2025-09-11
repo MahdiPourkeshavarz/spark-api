@@ -1,4 +1,6 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
@@ -35,12 +37,37 @@ export class ScraperService implements OnModuleInit {
   async onModuleInit() {
     this.logger.log('Initializing Puppeteer-core...');
     try {
-      this.browser = await puppeteer.launch({
-        args: chromium.args,
-        executablePath: await chromium.executablePath(),
+      const launchOptions: any = {
         headless: true,
-      });
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--disable-gpu',
+        ],
+      };
 
+      if (this.browser) {
+        try {
+          const chromium = require('@sparticuz/chromium');
+          launchOptions.args = chromium.args || launchOptions.args;
+          launchOptions.executablePath = await chromium.executablePath();
+          this.logger.log('Using @sparticuz/chromium for browser launch');
+        } catch (chromiumError) {
+          this.logger.warn(
+            '@sparticuz/chromium not available, using fallback args',
+          );
+        }
+      } else {
+        // For local development
+        launchOptions.executablePath = process.env.CHROMIUM_EXECUTABLE_PATH;
+      }
+
+      this.browser = await puppeteer.launch(launchOptions);
       this.logger.log('Puppeteer browser successfully launched.');
     } catch (error: any) {
       this.logger.error(
