@@ -9,8 +9,14 @@ WORKDIR /app
 # Copy dependency files
 COPY package.json yarn.lock* package-lock.json* ./
 
+# --- THIS IS THE POTENTIAL FIX ---
+# Set an environment variable to increase the memory available to Node.js
+ENV NODE_OPTIONS=--max-old-space-size=4096
+# --- END OF FIX ---
+
 # Install all dependencies
 RUN npm install
+
 
 # Copy the rest of your application source code
 COPY . .
