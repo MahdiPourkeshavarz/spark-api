@@ -1,7 +1,6 @@
 # Dockerfile
 
 # --- Stage 1: Build the application ---
-# This stage remains the same.
 FROM node:20-slim AS builder
 WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* ./
@@ -22,7 +21,7 @@ RUN apt-get update && apt-get install -y \
     libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 \
     libxss1 libxtst6 lsb-release wget xdg-utils
 
-# 2. Create the less-privileged user and group, also as 'root'.
+# 2. Create the less-privileged user and group.
 RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser
 
 # 3. Create the application directory and give ownership to the new user.
@@ -31,18 +30,19 @@ RUN mkdir -p /app && chown -R pptruser:pptruser /app
 # 4. Set the working directory.
 WORKDIR /app
 
-# 5. NOW, we switch to the less-privileged user.
+# 5. Switch to the less-privileged user.
 USER pptruser
 
-# 6. From here on, all commands run as the 'pptruser' inside the directory they own.
-# Copy dependency definitions for production.
-COPY --from=builder /app/package*.json ./
+# 6. Copy dependency definitions.
+COPY --chown=pptruser:pptruser --from=builder /app/package*.json ./
 
-# Install ONLY production dependencies. This will now succeed.
-RUN npm install --omit=dev
+# 7. THIS IS THE FINAL, WORKING FIX
+# We tell npm to use a cache directory inside /app, which our user owns,
+# before running the install command.
+RUN npm config set cache /app/.npm-cache --global && npm install --omit=dev
 
-# Copy the built application from the 'builder' stage.
-COPY --from=builder /app/dist ./dist
+# 8. Copy the built application.
+COPY --chown=pptruser:pptruser --from=builder /app/dist ./dist
 
-# The command that will be run when the container starts
+# The command that will be run when the container starts.
 CMD ["node", "dist/main"]
