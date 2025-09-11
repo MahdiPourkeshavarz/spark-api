@@ -1,8 +1,7 @@
 # Dockerfile
 
-# --- Stage 1: Build the application ---
-# Use a Node.js image that includes build tools
-FROM node:18-slim AS builder
+# --- Stage 1: Build the application using Node.js 20 ---
+FROM node:20-slim AS builder
 
 # Set the working directory
 WORKDIR /app
@@ -10,7 +9,7 @@ WORKDIR /app
 # Copy dependency files
 COPY package.json yarn.lock* package-lock.json* ./
 
-# Install all dependencies, including devDependencies needed for building
+# Install all dependencies
 RUN npm install
 
 # Copy the rest of your application source code
@@ -20,14 +19,17 @@ COPY . .
 RUN npm run build
 
 
-# --- Stage 2: Create the final, smaller production image ---
-FROM node:18-slim
+# --- Stage 2: Create the final, smaller production image using Node.js 20 ---
+FROM node:20-slim
 
 # Set the working directory
 WORKDIR /app
 
-# Install the system-level dependencies required for Chrome
-# This is a crucial step for Puppeteer to work
+# Add a non-root user for better security (best practice for production)
+RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser
+USER pptruser
+
+# Install system-level dependencies required for Chrome to run
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     fonts-liberation \
@@ -67,13 +69,13 @@ RUN apt-get update && apt-get install -y \
     xdg-utils
 
 # Copy dependency definitions for production
-COPY package.json yarn.lock* package-lock.json* ./
+COPY --chown=pptruser:pptruser package.json yarn.lock* package-lock.json* ./
 
-# Install ONLY production dependencies to keep the final image small
+# Install ONLY production dependencies
 RUN npm install --omit=dev
 
 # Copy the built application from the 'builder' stage
-COPY --from=builder /app/dist ./dist
+COPY --chown=pptruser:pptruser --from=builder /app/dist ./dist
 
 # The command that will be run when the container starts
 CMD ["node", "dist/main"]
