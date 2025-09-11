@@ -4,24 +4,30 @@ set -o errexit
 
 echo "--- Starting build script ---"
 
+# Set custom cache dir for Puppeteer (Render-persistent path)
+export PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+mkdir -p $PUPPETEER_CACHE_DIR
+
+# Pull Chrome from build cache if it exists (avoids re-download)
+BUILD_CACHE_CHROME=/opt/render/project/src/.cache/puppeteer/chrome
+if [[ -d $BUILD_CACHE_CHROME ]]; then
+  echo "Copying Puppeteer Chrome from build cache..."
+  cp -R $BUILD_CACHE_CHROME $PUPPETEER_CACHE_DIR
+fi
+
 # 1. Install npm dependencies
 echo "Installing npm dependencies..."
 npm install
 
-# 2. Add the Google Chrome repository (running directly as root)
-echo "Adding Google Chrome repository..."
-wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
-sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+# 2. Install Chrome binary (downloads if not cached; ~150MB on first run)
+echo "Installing Chrome for Puppeteer..."
+npx @puppeteer/browsers install chrome@stable
 
-# 3. Update packages and install Google Chrome (running directly as root)
-echo "Updating packages and installing Google Chrome..."
-apt-get update
-apt-get install -y google-chrome-stable
+# Push Chrome to build cache for next deploys
+mkdir -p /opt/render/project/src/.cache/puppeteer
+cp -R $PUPPETEER_CACHE_DIR/chrome /opt/render/project/src/.cache/puppeteer/
 
-# 4. Clean up the cache (running directly as root)
-apt-get clean
-
-# 5. Build the NestJS application
+# 3. Build the NestJS application
 echo "Building the NestJS app..."
 npm run build
 
