@@ -5,10 +5,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import puppeteer from 'puppeteer-core';
 import type { Browser } from 'puppeteer-core';
-import {
-  computeExecutablePath,
-  type Browser as BrowserName,
-} from '@puppeteer/browsers';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import {
@@ -37,19 +33,16 @@ export class ScraperService implements OnModuleInit {
   async onModuleInit() {
     this.logger.log('Initializing Puppeteer-core...');
     try {
-      const executablePath = computeExecutablePath({
-        browser: 'chrome' as BrowserName,
-        cacheDir: '/opt/render/.cache/puppeteer',
-        buildId: 'latest',
-      });
-
+      const executablePath = this.configService.get<string>(
+        'CHROME_EXECUTABLE_PATH',
+      );
       if (!executablePath) {
         throw new Error(
-          'Chrome executable path could not be computed. Ensure @puppeteer/browsers installed Chrome during build.',
+          'CHROME_EXECUTABLE_PATH is not set in environment variables.',
         );
       }
 
-      this.logger.log(`Using Chrome executable at: ${executablePath}`);
+      this.logger.log(`Attempting to launch Chrome at: ${executablePath}`);
 
       this.browser = await puppeteer.launch({
         executablePath,
@@ -58,8 +51,6 @@ export class ScraperService implements OnModuleInit {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--single-process',
-          '--disable-gpu', // Better compatibility on headless servers
-          '--disable-extensions', // Optional: Speeds up launch
         ],
         headless: true,
       });
