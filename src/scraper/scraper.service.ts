@@ -1,13 +1,9 @@
 /* eslint-disable prettier/prettier */
-/* eslint-disable @typescript-eslint/no-require-imports */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable prefer-const */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-constant-binary-expression */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import puppeteer from 'puppeteer-core';
-import type { Browser } from 'puppeteer-core';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import {
@@ -15,10 +11,8 @@ import {
   BadRequestException,
   Injectable,
   Logger,
-  OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import chromium from '@sparticuz/chromium';
 
 interface ScrapedPost {
   text: string;
@@ -28,136 +22,51 @@ interface ScrapedPost {
 }
 
 @Injectable()
-export class ScraperService implements OnModuleInit {
+export class ScraperService {
   private readonly logger = new Logger(ScraperService.name);
-  private browser: Browser | null = null;
 
   constructor(private readonly configService: ConfigService) {}
 
-  async onModuleInit() {
-    this.logger.log('Initializing Puppeteer-core...');
-    try {
-      const launchOptions: any = {
-        headless: 'new',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process',
-          '--disable-gpu',
-          '--remote-debugging-port=9222',
-          '--remote-debugging-address=0.0.0.0',
-        ],
-      };
-
-      // Try multiple possible Chrome/Chromium paths for Railway
-      const possiblePaths = [
-        // Railway-specific paths
-        '/usr/bin/chromium',
-        '/usr/bin/google-chrome',
-        '/usr/bin/chrome',
-        // Common system paths
-        '/usr/bin/chromium-browser',
-        '/usr/lib/chromium-browser/chromium-browser',
-        '/snap/bin/chromium',
-        // Fallback to letting puppeteer find it
-        undefined,
-      ];
-
-      let browserLaunched = false;
-      let lastError: Error | null = null;
-
-      for (const path of possiblePaths) {
-        try {
-          launchOptions.executablePath = path;
-          this.logger.log(
-            `Trying to launch with executable: ${path || 'auto-detect'}`,
-          );
-
-          this.browser = await puppeteer.launch(launchOptions);
-          browserLaunched = true;
-          this.logger.log(
-            `Successfully launched with executable: ${path || 'auto-detect'}`,
-          );
-          break;
-        } catch (error) {
-          lastError = error;
-          this.logger.warn(`Failed with executable ${path}: ${error.message}`);
-          continue;
-        }
-      }
-
-      if (!browserLaunched) {
-        throw (
-          lastError || new Error('No valid Chrome/Chromium executable found')
-        );
-      }
-
-      this.logger.log('Puppeteer browser successfully launched.');
-    } catch (error: any) {
-      this.logger.error(
-        'Failed to launch browser. Twitter scraping will be unavailable.',
-        error.stack,
-      );
-    }
-  }
-
   async scrapePost(url: string): Promise<ScrapedPost> {
     if (url.includes('twitter.com') || url.includes('x.com')) {
-      if (!this.browser)
-        throw new BadGatewayException(
-          'Browser service for Twitter scraping is not available.',
-        );
-      this.logger.log('Twitter/X URL detected. Using Puppeteer scraper.');
       return this._scrapeTwitter(url);
     } else if (url.includes('t.me')) {
-      this.logger.log('Telegram URL detected. Using Cheerio scraper.');
       return this._scrapeTelegram(url);
     } else {
-      throw new BadRequestException(
-        'Unsupported URL. Please provide a link from X/Twitter or Telegram.',
-      );
+      throw new BadRequestException('Unsupported URL.');
     }
   }
 
   private async _scrapeTwitter(url: string): Promise<ScrapedPost> {
-    if (!this.browser) {
-      throw new BadGatewayException(
-        'Browser service for Twitter scraping is not available.',
-      );
-    }
-    const page = await this.browser.newPage();
     try {
-      await page.goto(url, { waitUntil: 'networkidle2' });
-      const textSelector =
-        'article[data-testid="tweet"] div[data-testid="tweetText"]';
-      const authorSelector = 'div[data-testid="User-Name"] span';
-      const imageSelector =
-        'article[data-testid="tweet"] div[data-testid="tweetPhoto"] img';
-      await page.waitForSelector(textSelector, { timeout: 15000 });
-      const text = await page.$eval(
-        textSelector,
-        (el) => (el as HTMLElement).innerText,
-      );
-      const author = await page.$eval(
-        authorSelector,
-        (el) => (el as HTMLElement).innerText,
-      );
-      let imageUrl: string | undefined = undefined;
-      try {
-        imageUrl = await page.$eval(
-          imageSelector,
-          (el) => (el as HTMLImageElement).src,
+      // Step 1: Get the initial oEmbed data
+      const oEmbedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}`;
+      const response = await axios.get(oEmbedUrl);
+      const data = response.data;
+
+      if (!data || !data.html) {
+        throw new BadGatewayException(
+          'Could not retrieve tweet data from oEmbed API.',
         );
-      } catch (error) {
-        this.logger.log('No image found for this tweet, which is normal.');
       }
-      return { text, author: `@${author}`, source: 'twitter', imageUrl };
-    } finally {
-      await page.close();
+
+      const $ = cheerio.load(data.html);
+      const paragraph = $('blockquote p');
+
+      const pClone = paragraph.clone();
+      pClone.find('a').last().remove();
+      let text = pClone.text().trim();
+
+      const author = `@${data.author_name}` || 'Unknown Author';
+      const lang = (paragraph.attr('lang') as 'en' | 'fa') || 'unknown';
+
+      text = text.replace(/pic\.twitter\.com\/[a-zA-Z0-9]+/, '').trim();
+
+      this.logger.log(`Scraped Tweet | Lang: ${lang} | Author: ${author} `);
+      return { text, author, source: 'twitter' };
+    } catch (error) {
+      this.logger.error(`Failed to scrape Tweet: ${error.message}`);
+      throw new BadGatewayException('Failed to retrieve tweet data.');
     }
   }
 
@@ -210,9 +119,5 @@ export class ScraperService implements OnModuleInit {
       .join('\n')
       .trim();
     return { text: postText, author, source: 'telegram' };
-  }
-
-  async onModuleDestroy() {
-    if (this.browser) await this.browser.close();
   }
 }

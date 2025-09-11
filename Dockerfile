@@ -1,6 +1,7 @@
 # Dockerfile
 
 # --- Stage 1: Build the application ---
+# This stage remains the same.
 FROM node:20-slim AS builder
 WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* ./
@@ -13,32 +14,20 @@ RUN npm run build
 FROM node:20-slim
 WORKDIR /app
 
-# Install the minimal system-level dependencies required by @sparticuz/chromium
-# This runs as the default root user and will succeed.
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libgbm-dev \
-    libnss3 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libxss1 \
-    --no-install-recommends
+# We no longer need the long 'apt-get install' command for Chrome dependencies.
+# This makes the build much faster and more reliable.
 
-# Copy dependency definitions
-COPY --from=builder /app/package*.json ./
+# Create and switch to a less-privileged user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN mkdir -p /app && chown -R appuser:appuser /app
+USER appuser
 
-# Install ONLY production dependencies (this will also download the browser)
-# This also runs as root and will succeed.
-RUN npm install --omit=dev
+# Copy and install production dependencies
+COPY --chown=appuser:appuser --from=builder /app/package*.json ./
+RUN npm config set cache /app/.npm-cache --global && npm install --omit=dev
 
 # Copy the built application
-COPY --from=builder /app/dist ./dist
+COPY --chown=appuser:appuser --from=builder /app/dist ./dist
 
-# The command that will be run when the container starts
+# The command to run the application
 CMD ["node", "dist/main"]
