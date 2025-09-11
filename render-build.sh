@@ -19,8 +19,8 @@ fi
 echo "Installing npm dependencies..."
 npm install
 
-# 2. Install Chrome binary (downloads if not cached; ~150MB first run)
-echo "Installing Chrome for Puppeteer..."
+# 2. Install Chrome binary into the correct cache directory
+echo "Installing Chrome for Puppeteer into $PUPPETEER_CACHE_DIR..."
 npx @puppeteer/browsers install chrome@latest --path=$PUPPETEER_CACHE_DIR
 
 # Push Chrome to build cache for next deploys
