@@ -4,8 +4,8 @@ set -o errexit
 
 echo "--- Starting build script ---"
 
-# Set custom cache dir for Puppeteer (Render-persistent path)
-export PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+# Set Puppeteer cache dir (matches your ScraperService config)
+export PUPPETEER_CACHE_DIR=/root/.cache/puppeteer
 mkdir -p $PUPPETEER_CACHE_DIR
 
 # Pull Chrome from build cache if it exists (avoids re-download)
@@ -19,9 +19,9 @@ fi
 echo "Installing npm dependencies..."
 npm install
 
-# 2. Install Chrome binary (downloads if not cached; ~150MB on first run)
+# 2. Install Chrome binary (downloads if not cached; ~150MB first run)
 echo "Installing Chrome for Puppeteer..."
-npx @puppeteer/browsers install chrome@stable
+npx @puppeteer/browsers install chrome@latest --path=$PUPPETEER_CACHE_DIR
 
 # Push Chrome to build cache for next deploys
 mkdir -p /opt/render/project/src/.cache/puppeteer
