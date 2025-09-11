@@ -48,23 +48,38 @@ export class ScraperService implements OnModuleInit {
           '--no-zygote',
           '--single-process',
           '--disable-gpu',
+          '--remote-debugging-port=9222',
+          '--remote-debugging-address=0.0.0.0',
         ],
       };
 
-      if (this.browser) {
+      // Use @sparticuz/chromium for production environment
+      if (process.env.NODE_ENV === 'production') {
         try {
           const chromium = require('@sparticuz/chromium');
           launchOptions.args = chromium.args || launchOptions.args;
-          launchOptions.executablePath = await chromium.executablePath();
-          this.logger.log('Using @sparticuz/chromium for browser launch');
+
+          const executablePath = await chromium.executablePath();
+          if (executablePath) {
+            launchOptions.executablePath = executablePath;
+            this.logger.log('Using @sparticuz/chromium executable');
+          } else {
+            // Fallback to system Chrome if chromium executable is not found
+            launchOptions.executablePath = '/usr/bin/chromium-browser';
+            this.logger.warn(
+              'Chromium executable not found, using system Chrome',
+            );
+          }
         } catch (chromiumError) {
           this.logger.warn(
-            '@sparticuz/chromium not available, using fallback args',
+            '@sparticuz/chromium not available, using system Chrome',
           );
+          launchOptions.executablePath = '/usr/bin/chromium-browser';
         }
       } else {
         // For local development
-        launchOptions.executablePath = process.env.CHROMIUM_EXECUTABLE_PATH;
+        launchOptions.executablePath =
+          process.env.CHROMIUM_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
       }
 
       this.browser = await puppeteer.launch(launchOptions);
