@@ -41,7 +41,7 @@ export class ScraperService implements OnModuleInit {
         browser: 'chrome' as BrowserName,
         cacheDir:
           this.configService.get<string>('PUPPETEER_CACHE_DIR') ??
-          '/root/.cache/puppeteer',
+          '/opt/render/.cache/puppeteer',
         buildId: 'latest',
       });
 

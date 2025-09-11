@@ -4,8 +4,8 @@ set -o errexit
 
 echo "--- Starting build script ---"
 
-# Set Puppeteer cache dir (matches your ScraperService config)
-export PUPPETEER_CACHE_DIR=/root/.cache/puppeteer
+# Use a writable Puppeteer cache dir on Render
+export PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
 mkdir -p $PUPPETEER_CACHE_DIR
 
 # Pull Chrome from build cache if it exists (avoids re-download)
