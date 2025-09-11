@@ -1,41 +1,21 @@
 # Dockerfile
 
-# --- Stage 1: Build the application using Node.js 20 ---
+# --- Stage 1: Build the application ---
+# This stage remains the same.
 FROM node:20-slim AS builder
-
-# Set the working directory
 WORKDIR /app
-
-# Copy dependency files
 COPY package.json yarn.lock* package-lock.json* ./
-
-# --- THIS IS THE POTENTIAL FIX ---
-# Set an environment variable to increase the memory available to Node.js
-ENV NODE_OPTIONS=--max-old-space-size=4096
-# --- END OF FIX ---
-
-# Install all dependencies
 RUN npm install
-
-
-# Copy the rest of your application source code
 COPY . .
-
-# Build the TypeScript project into JavaScript
 RUN npm run build
 
 
-# --- Stage 2: Create the final, smaller production image using Node.js 20 ---
+# --- Stage 2: Create the final production image ---
 FROM node:20-slim
-
-# Set the working directory
 WORKDIR /app
 
-# Add a non-root user for better security (best practice for production)
-RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser
-USER pptruser
-
-# Install system-level dependencies required for Chrome to run
+# --- THIS IS THE FIX ---
+# 1. We perform all system-level installations FIRST, while we are still the 'root' user.
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     fonts-liberation \
@@ -74,10 +54,15 @@ RUN apt-get update && apt-get install -y \
     wget \
     xdg-utils
 
+# 2. NOW that the system is set up, we create the less-privileged user for security.
+RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser
+USER pptruser
+# --- END OF FIX ---
+
 # Copy dependency definitions for production
 COPY --chown=pptruser:pptruser package.json yarn.lock* package-lock.json* ./
 
-# Install ONLY production dependencies
+# Install ONLY production dependencies as the new user
 RUN npm install --omit=dev
 
 # Copy the built application from the 'builder' stage
