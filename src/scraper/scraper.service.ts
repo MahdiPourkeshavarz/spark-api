@@ -3,16 +3,21 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import puppeteer from 'puppeteer-core';
+import type { Browser } from 'puppeteer-core';
 import {
-  Injectable,
-  Logger,
-  BadGatewayException,
-  BadRequestException,
-} from '@nestjs/common';
-import puppeteer, { Browser, executablePath } from 'puppeteer-core';
-import { computeExecutablePath } from '@puppeteer/browsers';
+  computeExecutablePath,
+  type Browser as BrowserName,
+} from '@puppeteer/browsers';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 interface ScrapedPost {
@@ -23,7 +28,7 @@ interface ScrapedPost {
 }
 
 @Injectable()
-export class ScraperService {
+export class ScraperService implements OnModuleInit {
   private readonly logger = new Logger(ScraperService.name);
   private browser: Browser | null = null;
 
@@ -33,11 +38,17 @@ export class ScraperService {
     this.logger.log('Initializing Puppeteer-core...');
     try {
       const executablePath = computeExecutablePath({
-        browser: 'chrome' as const,
+        browser: 'chrome' as BrowserName,
+        cacheDir:
+          this.configService.get<string>('PUPPETEER_CACHE_DIR') ??
+          '/root/.cache/puppeteer',
+        buildId: 'latest',
       });
 
       if (!executablePath) {
-        throw new Error('Chrome executable path could not be computed. Ensure @puppeteer/browsers installed Chrome during build.');
+        throw new Error(
+          'Chrome executable path could not be computed. Ensure @puppeteer/browsers installed Chrome during build.',
+        );
       }
 
       this.logger.log(`Using Chrome executable at: ${executablePath}`);
@@ -49,13 +60,14 @@ export class ScraperService {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--single-process',
-          '--disable-gpu',  // Add this for better compatibility on headless servers
-          '--disable-extensions',  // Optional: Speeds up launch
+          '--disable-gpu', // Better compatibility on headless servers
+          '--disable-extensions', // Optional: Speeds up launch
         ],
         headless: true,
       });
+
       this.logger.log('Puppeteer browser successfully launched.');
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
         'Failed to launch browser. Twitter scraping will be unavailable.',
         error.stack,
