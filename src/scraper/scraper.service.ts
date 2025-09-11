@@ -38,7 +38,7 @@ export class ScraperService implements OnModuleInit {
     this.logger.log('Initializing Puppeteer-core...');
     try {
       const launchOptions: any = {
-        headless: true,
+        headless: 'new',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -53,36 +53,49 @@ export class ScraperService implements OnModuleInit {
         ],
       };
 
-      // Use @sparticuz/chromium for production environment
-      if (process.env.NODE_ENV === 'production') {
-        try {
-          const chromium = require('@sparticuz/chromium');
-          launchOptions.args = chromium.args || launchOptions.args;
+      // Try multiple possible Chrome/Chromium paths for Railway
+      const possiblePaths = [
+        // Railway-specific paths
+        '/usr/bin/chromium',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chrome',
+        // Common system paths
+        '/usr/bin/chromium-browser',
+        '/usr/lib/chromium-browser/chromium-browser',
+        '/snap/bin/chromium',
+        // Fallback to letting puppeteer find it
+        undefined,
+      ];
 
-          const executablePath = await chromium.executablePath();
-          if (executablePath) {
-            launchOptions.executablePath = executablePath;
-            this.logger.log('Using @sparticuz/chromium executable');
-          } else {
-            // Fallback to system Chrome if chromium executable is not found
-            launchOptions.executablePath = '/usr/bin/chromium-browser';
-            this.logger.warn(
-              'Chromium executable not found, using system Chrome',
-            );
-          }
-        } catch (chromiumError) {
-          this.logger.warn(
-            '@sparticuz/chromium not available, using system Chrome',
+      let browserLaunched = false;
+      let lastError: Error | null = null;
+
+      for (const path of possiblePaths) {
+        try {
+          launchOptions.executablePath = path;
+          this.logger.log(
+            `Trying to launch with executable: ${path || 'auto-detect'}`,
           );
-          launchOptions.executablePath = '/usr/bin/chromium-browser';
+
+          this.browser = await puppeteer.launch(launchOptions);
+          browserLaunched = true;
+          this.logger.log(
+            `Successfully launched with executable: ${path || 'auto-detect'}`,
+          );
+          break;
+        } catch (error) {
+          lastError = error;
+          this.logger.warn(`Failed with executable ${path}: ${error.message}`);
+          continue;
         }
-      } else {
-        // For local development
-        launchOptions.executablePath =
-          process.env.CHROMIUM_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
       }
 
-      this.browser = await puppeteer.launch(launchOptions);
+      if (!browserLaunched) {
+        throw (
+          lastError || new Error('No valid Chrome/Chromium executable found')
+        );
+      }
+
       this.logger.log('Puppeteer browser successfully launched.');
     } catch (error: any) {
       this.logger.error(
