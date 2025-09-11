@@ -10,6 +10,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import puppeteer, { Browser, executablePath } from 'puppeteer-core';
+import { computeExecutablePath } from '@puppeteer/browsers';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { ConfigService } from '@nestjs/config';
@@ -31,14 +32,15 @@ export class ScraperService {
   async onModuleInit() {
     this.logger.log('Initializing Puppeteer-core...');
     try {
-      const executablePath = this.configService.get<string>(
-        'CHROME_EXECUTABLE_PATH',
-      );
+      const executablePath = computeExecutablePath({
+        browser: 'chrome' as const,
+      });
+
       if (!executablePath) {
-        throw new Error(
-          'CHROME_EXECUTABLE_PATH is not set in environment variables.',
-        );
+        throw new Error('Chrome executable path could not be computed. Ensure @puppeteer/browsers installed Chrome during build.');
       }
+
+      this.logger.log(`Using Chrome executable at: ${executablePath}`);
 
       this.browser = await puppeteer.launch({
         executablePath,
@@ -47,6 +49,8 @@ export class ScraperService {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--single-process',
+          '--disable-gpu',  // Add this for better compatibility on headless servers
+          '--disable-extensions',  // Optional: Speeds up launch
         ],
         headless: true,
       });
