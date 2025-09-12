@@ -77,4 +77,8 @@ export class UsersService {
   findByUsername(username: string): Promise<UserDocument | null> {
     return this.userModel.findOne({ username: username.toLowerCase() }).exec();
   }
+
+  findByEmail(email: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ email });
+  }
 }
