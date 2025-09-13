@@ -5,7 +5,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User, UserDocument } from './entities/user.entity';
 import { InjectModel } from '@nestjs/mongoose';
@@ -35,6 +39,13 @@ export class UsersService {
     file?: Express.Multer.File,
   ): Promise<{ user: Partial<UserDocument>; access_token: string }> {
     const updateData: Partial<User> = { ...updateUserDto };
+
+    if (updateUserDto.username) {
+      const existingUser = await this.findByUsername(updateUserDto.username);
+      if (existingUser) {
+        throw new ConflictException('username is already exists');
+      }
+    }
 
     if (file) {
       console.log('Processing file:', file.originalname, file.mimetype);
