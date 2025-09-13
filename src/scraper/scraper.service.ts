@@ -110,6 +110,7 @@ export class ScraperService {
       /•(.*?)•/, // For •Author•
       /》(.*?)《/, // For 》Author《
       /»(.*?)«/, // For »Author«
+      /×(.*?)×/, //for ×Author×
     ];
 
     for (const pattern of authorPatterns) {
