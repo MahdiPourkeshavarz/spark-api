@@ -1,98 +1,114 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# ✨ Spark API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+[![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This is the backend for the Spark application. It is a robust, modular API built with NestJS that provides user authentication, manages a database of social media posts, and includes an intelligent scraping service to import new content on demand.
 
-## Description
+**Live API URL:** `https://spark-api-b3jp.onrender.com`
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+**GitHub Repository:** [https://github.com/MahdiPourkeshavarz/spark-api](https://github.com/MahdiPourkeshavarz/spark-api)
 
-## Project setup
+---
 
-```bash
-$ npm install
-```
+## Features
 
-## Compile and run the project
+- **Secure Authentication:** Full-featured user sign-up and login system using Passport.js and JSON Web Tokens (JWT). Passwords are securely hashed with `bcrypt`.
+- **User Profile Management:** Allows users to update their username and upload a profile picture, which is hosted on Cloudinary.
+- **Automated Content Collection:** A Telegram bot (`Telegraf`) actively listens to a specified channel, intelligently parses new posts (including those with images), and saves them to the database.
+- **"Magic Link" Post Importer:** A powerful scraping service that can take a URL from **Twitter/X**, **Telegram**, or **LinkedIn** and automatically extract the post's text, author, and image URL.
+  - Uses a hybrid approach: fast Cheerio parsing for Telegram and LinkedIn meta tags, and a more robust scraping method for Twitter.
+- **Database Management:** Uses Mongoose to interact with a MongoDB database for storing user and post data.
+- **Scalable Architecture:** Built with a modular structure (e.g., `AuthModule`, `PostsModule`, `ScraperModule`), making the codebase clean, maintainable, and easy to extend.
+- **Ready for Deployment:** Configured for production deployment using Docker on platforms like Railway or Render.
 
-```bash
-# development
-$ npm run start
+## Tech Stack
 
-# watch mode
-$ npm run start:dev
+- **Framework:** [NestJS](https://nestjs.com/)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Database:** [MongoDB](https://www.mongodb.com/) with [Mongoose](https://mongoosejs.com/)
+- **Authentication:** [Passport.js](http://www.passportjs.org/) with JWT strategy
+- **Telegram Bot:** [Telegraf](https://telegraf.js.org/)
+- **Web Scraping:** [Axios](https://axios-http.com/) & [Cheerio](https://cheerio.js.org/)
+- **Image Hosting:** [Cloudinary](https://cloudinary.com/)
+- **Deployment:** [Docker](https://www.docker.com/) & [Render](https://render.com/)
 
-# production mode
-$ npm run start:prod
-```
+---
 
-## Run tests
+## Getting Started
 
-```bash
-# unit tests
-$ npm run test
+To run this project locally, follow these steps.
 
-# e2e tests
-$ npm run test:e2e
+### Prerequisites
 
-# test coverage
-$ npm run test:cov
-```
+- [Node.js](https://nodejs.org/) (v20 or later recommended)
+- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+- A [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account (or a local MongoDB instance)
+- A [Cloudinary](https://cloudinary.com/) account for image uploads
+- A [Telegram Bot Token](https://core.telegram.org/bots#6-botfather)
 
-## Deployment
+### Installation & Setup
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+1.  **Clone the repository:**
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+    ```bash
+    git clone [https://github.com/MahdiPourkeshavarz/spark-api.git](https://github.com/MahdiPourkeshavarz/spark-api.git)
+    cd spark-api
+    ```
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+2.  **Install dependencies:**
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+    ```bash
+    npm install
+    ```
 
-## Resources
+3.  **Set up environment variables:**
+    Create a file named `.env` in the root of the project and add the following variables with your own credentials:
 
-Check out a few resources that may come in handy when working with NestJS:
+    ```env
+    # Database
+    MONGODB_URI=mongodb+srv://<user>:<password>@<cluster-url>/<db-name>
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+    # JWT Authentication
+    JWT_SECRET=your_super_long_and_random_jwt_secret_string
 
-## Support
+    # Telegram Bot
+    TELEGRAM_API_KEY=your_telegram_bot_token_from_botfather
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+    # Cloudinary Credentials (for profile picture uploads)
+    CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+    CLOUDINARY_API_KEY=your_cloudinary_api_key
+    CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 
-## Stay in touch
+    # The full URL of your front-end application for CORS
+    FRONTEND_URL=http://localhost:3001
+    ```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+4.  **Run the development server:**
+    ```bash
+    npm run start:dev
+    ```
 
-## License
+The API will be running at [http://localhost:3000](http://localhost:3000).
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## API Endpoints
+
+A brief overview of the main API routes:
+
+- `POST /auth/signup`: Create a new user account.
+- `POST /auth/login`: Log in a user and receive a JWT.
+- `PATCH /users/profile`: (Protected) Update the authenticated user's profile (username/image).
+- `GET /posts/batch`: (Protected) Get a random batch of 100 posts from the database.
+- `POST /posts/import`: (Protected) Scrape a post from a provided URL (Twitter, Telegram, LinkedIn).
+
+## Project Structure
+
+The API is organized into feature-based modules for a clean separation of concerns.
+
+- `src/auth`: Handles user registration, login, and JWT strategy.
+- `src/users`: Manages user data, schemas, and profile updates.
+- `src/posts`: Provides API endpoints for fetching and importing posts.
+- `src/scraper`: Contains the intelligent scraping logic for external platforms.
+- `src/telegram`: Manages the real-time Telegram bot for content collection.
+- `src/uploads`: Contains services for handling file uploads to Cloudinary.
