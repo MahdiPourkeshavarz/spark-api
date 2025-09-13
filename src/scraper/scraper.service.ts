@@ -95,29 +95,40 @@ export class ScraperService {
       .split('\n')
       .filter((line) => line.trim() !== '');
     if (lines.length < 2) return null;
+
     const potentialChannelId = lines[lines.length - 1].trim();
     if (potentialChannelId.startsWith('@')) {
       lines.pop();
     }
     if (lines.length < 2) return null;
+
     const authorLine = lines[lines.length - 1].trim();
     let author: string | null = null;
-    const separator = authorLine.includes('•')
-      ? '•'
-      : authorLine.length >= 3 &&
-          authorLine.charAt(0) === authorLine.charAt(authorLine.length - 1)
-        ? authorLine.charAt(0)
-        : null;
-    if (separator) {
-      author = authorLine.split(separator).filter(Boolean)[0].trim();
+
+    const authorPatterns = [
+      /\*(.*?)\*/, // For *Author*
+      /•(.*?)•/, // For •Author•
+      /》(.*?)《/, // For 》Author《
+      /»(.*?)«/, // For »Author«
+    ];
+
+    for (const pattern of authorPatterns) {
+      const match = authorLine.match(pattern);
+      if (match && match[1]) {
+        author = match[1].trim();
+        break;
+      }
     }
+
     if (!author) {
       author = 'telegram';
     }
+
     const postText = lines
       .slice(0, lines.length - 1)
       .join('\n')
       .trim();
+
     return { text: postText, author, source: 'telegram' };
   }
 }
