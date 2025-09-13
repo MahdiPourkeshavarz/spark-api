@@ -32,8 +32,13 @@ export class ScraperService {
       return this._scrapeTwitter(url);
     } else if (url.includes('t.me')) {
       return this._scrapeTelegram(url);
+    } else if (url.includes('linkedin.com')) {
+      this.logger.log('LinkedIn URL detected. Using JSON-LD scraper.');
+      return this._scrapeLinkedIn(url);
     } else {
-      throw new BadRequestException('Unsupported URL.');
+      throw new BadRequestException(
+        'Unsupported URL. Please provide a link from X/Twitter, Telegram, or LinkedIn.',
+      );
     }
   }
 
@@ -131,5 +136,48 @@ export class ScraperService {
       .trim();
 
     return { text: postText, author, source: 'telegram' };
+  }
+
+  private async _scrapeLinkedIn(url: string): Promise<ScrapedPost> {
+    try {
+      const response = await axios.get(url);
+      const html = response.data;
+
+      const $ = cheerio.load(html);
+
+      const scriptTagContent = $('script[type="application/ld+json"]').html();
+
+      if (!scriptTagContent) {
+        throw new Error(
+          'Could not find the JSON-LD script tag containing post data.',
+        );
+      }
+
+      const data = JSON.parse(scriptTagContent);
+
+      const text = data.articleBody || data.headline || '';
+      const author = data.author?.name || 'Unknown Author';
+      const imageUrl = data.image?.url;
+
+      const lang = this.isFarsi(text) ? 'fa' : 'en';
+
+      this.logger.log(
+        `Scraped LinkedIn Post | Lang: ${lang} | Author: ${author} | Image: ${!!imageUrl}`,
+      );
+
+      return { text, author, imageUrl, source: 'linkedin' };
+    } catch (error) {
+      this.logger.error(
+        `Failed to scrape LinkedIn post at ${url}: ${error.message}`,
+      );
+      throw new BadGatewayException(
+        'Failed to retrieve or parse LinkedIn post data.',
+      );
+    }
+  }
+
+  private isFarsi(text: string): boolean {
+    const farsiRegex = /[\u0600-\u06FF]/;
+    return farsiRegex.test(text);
   }
 }
