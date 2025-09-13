@@ -41,12 +41,12 @@ export class PostsService {
 
     const scrapedData = await this.scraperService.scrapePost(url);
 
-    if (scrapedData.text.length > 330) {
+    if (scrapedData.text.length > 420) {
       this.logger.warn(
         `Scraped post text from ${url} is too long (${scrapedData.text.length} chars).`,
       );
       throw new UnprocessableEntityException(
-        'The text of the post exceeds the 330-character limit.',
+        'The text of the post exceeds the 420-character limit.',
       );
     }
 
