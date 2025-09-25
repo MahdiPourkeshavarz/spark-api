@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 
@@ -45,11 +46,20 @@ export class AuthService {
   }
 
   async login(loginUserDto: LoginUserDto): Promise<{ access_token: string }> {
-    const { username, password } = loginUserDto;
-    const user = await this.usersService.findByUsername(username);
+    const { username, password, email } = loginUserDto;
 
-    if (user && (await bcrypt.compare(password, user.password_hash))) {
-      const payload = { sub: user._id, username: user.username };
+    const user = await this.usersService.findByEmail(email as string);
+
+    const userByUsername = await this.usersService.findByUsername(username);
+
+    if (
+      userByUsername &&
+      (await bcrypt.compare(password, userByUsername.password_hash))
+    ) {
+      const payload = {
+        sub: userByUsername._id,
+        username: userByUsername.username,
+      };
       const access_token = await this.jwtService.signAsync(payload);
       return { access_token };
     }

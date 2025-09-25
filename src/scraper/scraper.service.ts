@@ -1,17 +1,17 @@
 /* eslint-disable prettier/prettier */
 /* eslint-disable prefer-const */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-constant-binary-expression */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import {
-  Injectable,
-  Logger,
-  BadGatewayException,
-  BadRequestException,
-} from '@nestjs/common';
-import puppeteer, { Browser, executablePath } from 'puppeteer-core';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 interface ScrapedPost {
@@ -24,94 +24,54 @@ interface ScrapedPost {
 @Injectable()
 export class ScraperService {
   private readonly logger = new Logger(ScraperService.name);
-  private browser: Browser | null = null;
 
   constructor(private readonly configService: ConfigService) {}
 
-  async onModuleInit() {
-    this.logger.log('Initializing Puppeteer-core...');
-    try {
-      const executablePath = this.configService.get<string>(
-        'CHROME_EXECUTABLE_PATH',
-      );
-      if (!executablePath) {
-        throw new Error(
-          'CHROME_EXECUTABLE_PATH is not set in environment variables.',
-        );
-      }
-
-      this.browser = await puppeteer.launch({
-        executablePath,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--single-process',
-        ],
-        headless: true,
-      });
-      this.logger.log('Puppeteer browser successfully launched.');
-    } catch (error) {
-      this.logger.error(
-        'Failed to launch browser. Twitter scraping will be unavailable.',
-        error.stack,
-      );
-    }
-  }
-
   async scrapePost(url: string): Promise<ScrapedPost> {
     if (url.includes('twitter.com') || url.includes('x.com')) {
-      if (!this.browser)
-        throw new BadGatewayException(
-          'Browser service for Twitter scraping is not available.',
-        );
-      this.logger.log('Twitter/X URL detected. Using Puppeteer scraper.');
       return this._scrapeTwitter(url);
     } else if (url.includes('t.me')) {
-      this.logger.log('Telegram URL detected. Using Cheerio scraper.');
       return this._scrapeTelegram(url);
+    } else if (url.includes('linkedin.com')) {
+      this.logger.log('LinkedIn URL detected. Using JSON-LD scraper.');
+      return this._scrapeLinkedIn(url);
     } else {
       throw new BadRequestException(
-        'Unsupported URL. Please provide a link from X/Twitter or Telegram.',
+        'Unsupported URL. Please provide a link from X/Twitter, Telegram, or LinkedIn.',
       );
     }
   }
 
   private async _scrapeTwitter(url: string): Promise<ScrapedPost> {
-    if (!this.browser) {
-      throw new BadGatewayException(
-        'Browser service for Twitter scraping is not available.',
-      );
-    }
-    const page = await this.browser.newPage();
     try {
-      await page.goto(url, { waitUntil: 'networkidle2' });
-      const textSelector =
-        'article[data-testid="tweet"] div[data-testid="tweetText"]';
-      const authorSelector = 'div[data-testid="User-Name"] span';
-      const imageSelector =
-        'article[data-testid="tweet"] div[data-testid="tweetPhoto"] img';
-      await page.waitForSelector(textSelector, { timeout: 15000 });
-      const text = await page.$eval(
-        textSelector,
-        (el) => (el as HTMLElement).innerText,
-      );
-      const author = await page.$eval(
-        authorSelector,
-        (el) => (el as HTMLElement).innerText,
-      );
-      let imageUrl: string | undefined = undefined;
-      try {
-        imageUrl = await page.$eval(
-          imageSelector,
-          (el) => (el as HTMLImageElement).src,
+      // Step 1: Get the initial oEmbed data
+      const oEmbedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}`;
+      const response = await axios.get(oEmbedUrl);
+      const data = response.data;
+
+      if (!data || !data.html) {
+        throw new BadGatewayException(
+          'Could not retrieve tweet data from oEmbed API.',
         );
-      } catch (error) {
-        this.logger.log('No image found for this tweet, which is normal.');
       }
-      return { text, author: `@${author}`, source: 'twitter', imageUrl };
-    } finally {
-      await page.close();
+
+      const $ = cheerio.load(data.html);
+      const paragraph = $('blockquote p');
+
+      const pClone = paragraph.clone();
+      pClone.find('a').last().remove();
+      let text = pClone.text().trim();
+
+      const author = `@${data.author_name}` || 'Unknown Author';
+      const lang = (paragraph.attr('lang') as 'en' | 'fa') || 'unknown';
+
+      text = text.replace(/pic\.twitter\.com\/[a-zA-Z0-9]+/, '').trim();
+
+      this.logger.log(`Scraped Tweet | Lang: ${lang} | Author: ${author} `);
+      return { text, author, source: 'twitter' };
+    } catch (error) {
+      this.logger.error(`Failed to scrape Tweet: ${error.message}`);
+      throw new BadGatewayException('Failed to retrieve tweet data.');
     }
   }
 
@@ -140,33 +100,84 @@ export class ScraperService {
       .split('\n')
       .filter((line) => line.trim() !== '');
     if (lines.length < 2) return null;
+
     const potentialChannelId = lines[lines.length - 1].trim();
     if (potentialChannelId.startsWith('@')) {
       lines.pop();
     }
     if (lines.length < 2) return null;
+
     const authorLine = lines[lines.length - 1].trim();
     let author: string | null = null;
-    const separator = authorLine.includes('•')
-      ? '•'
-      : authorLine.length >= 3 &&
-          authorLine.charAt(0) === authorLine.charAt(authorLine.length - 1)
-        ? authorLine.charAt(0)
-        : null;
-    if (separator) {
-      author = authorLine.split(separator).filter(Boolean)[0].trim();
+
+    const authorPatterns = [
+      /\*(.*?)\*/, // For *Author*
+      /•(.*?)•/, // For •Author•
+      /》(.*?)《/, // For 》Author《
+      /»(.*?)«/, // For »Author«
+      /×(.*?)×/, //for ×Author×
+    ];
+
+    for (const pattern of authorPatterns) {
+      const match = authorLine.match(pattern);
+      if (match && match[1]) {
+        author = match[1].trim();
+        break;
+      }
     }
+
     if (!author) {
       author = 'telegram';
     }
+
     const postText = lines
       .slice(0, lines.length - 1)
       .join('\n')
       .trim();
+
     return { text: postText, author, source: 'telegram' };
   }
 
-  async onModuleDestroy() {
-    if (this.browser) await this.browser.close();
+  private async _scrapeLinkedIn(url: string): Promise<ScrapedPost> {
+    try {
+      const response = await axios.get(url);
+      const html = response.data;
+
+      const $ = cheerio.load(html);
+
+      const scriptTagContent = $('script[type="application/ld+json"]').html();
+
+      if (!scriptTagContent) {
+        throw new Error(
+          'Could not find the JSON-LD script tag containing post data.',
+        );
+      }
+
+      const data = JSON.parse(scriptTagContent);
+
+      const text = data.articleBody || data.headline || '';
+      const author = data.author?.name || 'Unknown Author';
+      const imageUrl = data.image?.url;
+
+      const lang = this.isFarsi(text) ? 'fa' : 'en';
+
+      this.logger.log(
+        `Scraped LinkedIn Post | Lang: ${lang} | Author: ${author} | Image: ${!!imageUrl}`,
+      );
+
+      return { text, author, imageUrl, source: 'linkedin' };
+    } catch (error) {
+      this.logger.error(
+        `Failed to scrape LinkedIn post at ${url}: ${error.message}`,
+      );
+      throw new BadGatewayException(
+        'Failed to retrieve or parse LinkedIn post data.',
+      );
+    }
+  }
+
+  private isFarsi(text: string): boolean {
+    const farsiRegex = /[\u0600-\u06FF]/;
+    return farsiRegex.test(text);
   }
 }

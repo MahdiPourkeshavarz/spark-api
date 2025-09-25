@@ -115,18 +115,24 @@ export class TelegramService implements OnModuleInit {
     const authorLine = lines[lines.length - 1].trim();
     let author: string | null = null;
 
-    if (
-      authorLine.length >= 3 &&
-      authorLine.charAt(0) === authorLine.charAt(authorLine.length - 1)
-    ) {
-      author = authorLine.slice(1, -1).trim();
+    const authorPatterns = [
+      /\*(.*?)\*/, // For *Author*
+      /•(.*?)•/, // For •Author•
+      /》(.*?)《/, // For 》Author《
+      /»(.*?)«/, // For »Author«
+      /×(.*?)×/, //for ×Author×
+    ];
+
+    for (const pattern of authorPatterns) {
+      const match = authorLine.match(pattern);
+      if (match && match[1]) {
+        author = match[1].trim();
+        break;
+      }
     }
 
     if (!author) {
-      this.logger.warn(
-        'Could not detect an author in the expected format from the forwarded message. Skipping.',
-      );
-      return;
+      author = 'telegram';
     }
 
     const text = lines
