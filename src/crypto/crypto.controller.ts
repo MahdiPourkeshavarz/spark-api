@@ -14,7 +14,7 @@ export class CryptoController {
     return this.cryptoService.getTopCoins();
   }
 
-  @Get(':id')
+  @Get('id/:id')
   async getById(@Param('id') id: string) {
     return this.cryptoService.getCoinById(id);
   }
