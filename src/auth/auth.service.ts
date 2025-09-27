@@ -13,6 +13,7 @@ import { UsersService } from 'src/users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { LoginUserDto } from './dto/login-user.dto';
 import * as bcrypt from 'bcrypt';
+import { UserDocument } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -45,7 +46,9 @@ export class AuthService {
     return { access_token };
   }
 
-  async login(loginUserDto: LoginUserDto): Promise<{ access_token: string }> {
+  async login(
+    loginUserDto: LoginUserDto,
+  ): Promise<{ user: UserDocument; access_token: string }> {
     const { username, password, email } = loginUserDto;
 
     const user = await this.usersService.findByEmail(email as string);
@@ -59,9 +62,10 @@ export class AuthService {
       const payload = {
         sub: userByUsername._id,
         username: userByUsername.username,
+        image: userByUsername?.image || '',
       };
       const access_token = await this.jwtService.signAsync(payload);
-      return { access_token };
+      return { user: userByUsername, access_token };
     }
 
     throw new UnauthorizedException('Please check your login credentials');
