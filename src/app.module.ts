@@ -12,6 +12,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { UploadsModule } from './uploads/uploads.module';
 import { ScraperModule } from './scraper/scraper.module';
 import { CryptoModule } from './crypto/crypto.module';
+import { FootballModule } from './footbal/football.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { CryptoModule } from './crypto/crypto.module';
     UploadsModule,
     ScraperModule,
     CryptoModule,
+    FootballModule,
   ],
   controllers: [AppController],
   providers: [AppService],
