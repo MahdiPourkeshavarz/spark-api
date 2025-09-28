@@ -13,6 +13,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { ScraperModule } from './scraper/scraper.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { FootballModule } from './footbal/football.module';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
@@ -29,6 +30,10 @@ import { FootballModule } from './footbal/football.module';
     ScraperModule,
     CryptoModule,
     FootballModule,
+    CacheModule.register({
+      isGlobal: true,
+      ttl: 180 * 1000,
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],
