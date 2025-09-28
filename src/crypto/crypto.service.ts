@@ -3,10 +3,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { HttpService } from '@nestjs/axios';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { Crypto } from './dto/crypto.dto';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 export interface SearchResult {
   id: string;
@@ -26,6 +28,7 @@ export class CryptoService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {
     this.apiKey = this.configService.get<string>('COINGECKO_API_KEY') as string;
   }
@@ -53,6 +56,14 @@ export class CryptoService {
   }
 
   async getCoinById(id: string): Promise<Crypto> {
+    const cacheKey = `crypto-${id}`;
+
+    const cachedData = (await this.cacheManager.get(cacheKey)) as Crypto;
+
+    if (cachedData) {
+      return cachedData;
+    }
+
     const url = `${this.baseUrl}/coins/markets`;
     const params = {
       vs_currency: 'usd',
@@ -71,6 +82,8 @@ export class CryptoService {
         );
       }
 
+      await this.cacheManager.set(cacheKey, data[0], 120 * 1000);
+
       return data[0];
     } catch (error) {
       console.error(`Error fetching coin by ID (${id}):`, error.message);
@@ -84,6 +97,14 @@ export class CryptoService {
       return null;
     }
 
+    const cacheKey = `query-${query}`;
+
+    const cachedData = (await this.cacheManager.get(cacheKey)) as SearchResult;
+
+    if (cachedData) {
+      return cachedData;
+    }
+
     const url = `${this.baseUrl}/search`;
     const params = {
       query,
@@ -94,6 +115,8 @@ export class CryptoService {
       const { data } = await firstValueFrom(
         this.httpService.get<{ coins: SearchResult[] }>(url, { params }),
       );
+
+      await this.cacheManager.set(cacheKey, data.coins[0], 120 * 1000);
 
       return data.coins[0];
     } catch (error) {

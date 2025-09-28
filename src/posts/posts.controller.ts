@@ -1,14 +1,18 @@
 /* eslint-disable prettier/prettier */
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseInterceptors } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { Post as PostDocument } from './entities/post.entity';
 import { ImportPostDto } from './dto/import-post.dto';
+import { CacheInterceptor, CacheKey, CacheTTL } from '@nestjs/cache-manager';
 
 @Controller('posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Get('batch')
+  @UseInterceptors(CacheInterceptor)
+  @CacheKey('post-batch')
+  @CacheTTL(60 * 1000)
   async getPostBatch(): Promise<PostDocument[]> {
     const posts = await this.postsService.findRandomBatch();
 
