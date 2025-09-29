@@ -2,7 +2,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -10,8 +16,9 @@ import { subMonths, format } from 'date-fns';
 import axiosRetry from 'axios-retry';
 import { TeamDto } from './dto/team.dto';
 import { MatchResultDto } from './dto/match-result.dto';
-import { teamData } from './constants/teams';
+import { allEuropeanLeaguesData, teamData } from './constants/teams';
 import { ConfigService } from '@nestjs/config';
+import Fuse from 'fuse.js';
 
 @Injectable()
 export class FootballService {
@@ -91,6 +98,24 @@ export class FootballService {
       };
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async searchTeam(name: string) {
+    const fuse = new Fuse(allEuropeanLeaguesData, {
+      keys: ['name', 'shortName'],
+      threshold: 0.7,
+    });
+
+    const result = fuse.search(name);
+
+    const teamId = result && result[0].item.id;
+
+    if (teamId) {
+      const match = await this.fetchLastMatch(result[0].item);
+      return match;
+    } else {
+      throw NotFoundException;
     }
   }
 }
