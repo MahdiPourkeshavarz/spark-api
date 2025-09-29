@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { IsNumber, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class TeamDto {
   @IsNumber()
@@ -7,6 +7,10 @@ export class TeamDto {
 
   @IsString()
   name: string;
+
+  @IsString()
+  @IsOptional()
+  shortName?: string;
 
   @IsString()
   league: string;

@@ -2,7 +2,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  Logger,
+  NotFoundException,
+  Inject,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -10,8 +17,11 @@ import { subMonths, format } from 'date-fns';
 import axiosRetry from 'axios-retry';
 import { TeamDto } from './dto/team.dto';
 import { MatchResultDto } from './dto/match-result.dto';
-import { teamData } from './constants/teams';
+import { allEuropeanLeaguesData, teamData } from './constants/teams';
 import { ConfigService } from '@nestjs/config';
+import Fuse from 'fuse.js';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class FootballService {
@@ -22,6 +32,7 @@ export class FootballService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {
     axiosRetry(this.httpService.axiosRef, {
       retries: 3,
@@ -39,9 +50,35 @@ export class FootballService {
     return results;
   }
 
+  async searchTeam(name: string) {
+    const fuse = new Fuse(allEuropeanLeaguesData, {
+      keys: ['name', 'shortName'],
+      threshold: 0.7,
+    });
+
+    const result = fuse.search(name);
+
+    const teamId = result && result[0].item.id;
+
+    if (teamId) {
+      const match = await this.fetchLastMatch(result[0].item);
+      return match;
+    } else {
+      throw NotFoundException;
+    }
+  }
+
   private async fetchLastMatch(team: TeamDto): Promise<MatchResultDto> {
     const dateFrom = format(subMonths(new Date(), 3), 'yyyy-MM-dd');
     const dateTo = format(new Date(), 'yyyy-MM-dd');
+    const cacheKey = `last-match-${team.id}`;
+
+    const cached = (await this.cacheManager.get(cacheKey)) as MatchResultDto;
+
+    if (cached) {
+      return cached;
+    }
+
     try {
       const response = await firstValueFrom(
         this.httpService
@@ -81,7 +118,7 @@ export class FootballService {
       );
       const lastMatch = matches[0];
 
-      return {
+      const res = {
         home: lastMatch.homeTeam.name,
         away: lastMatch.awayTeam.name,
         score: `${lastMatch.score.fullTime.home} - ${lastMatch.score.fullTime.away}`,
@@ -89,6 +126,10 @@ export class FootballService {
         date: lastMatch.utcDate,
         competition: lastMatch.competition.name,
       };
+
+      await this.cacheManager.set(cacheKey, res, 240 * 1000);
+
+      return res;
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
